@@ -11,3 +11,6 @@ pandas>=2.0,<3
 tushare>=1.4,<2
 xgboost>=2.0,<3
 scikit-learn>=1.4,<2
+
+# dev / test
+pytest>=8
