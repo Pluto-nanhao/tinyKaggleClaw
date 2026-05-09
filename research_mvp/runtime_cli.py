@@ -582,11 +582,34 @@ def wait_for_codex_ready(target: str, *, timeout_seconds: float = 20.0) -> bool:
 
 
 def pane_has_pending_paste(target: str) -> bool:
-    output = capture_target_output(target, lines=20)
-    for line in output.splitlines():
-        stripped = line.lstrip()
-        if "[Pasted text " in stripped or "[Pasted Content " in stripped:
+    output = capture_target_output(target, lines=30)
+    if "[Pasted text " in output or "[Pasted Content " in output:
+        return True
+    # Claude TUI is actively processing -> input was already submitted.
+    if "esc to interrupt" in output:
+        return False
+    # Detect text sitting in the idle Claude input box, which is bounded by
+    # two horizontal-rule separator lines around a "❯ <text>" line. Menu
+    # selectors also use "❯" but are not bounded by separators on both sides.
+    lines = output.splitlines()
+    for idx, line in enumerate(lines):
+        if "❯" not in line:
+            continue
+        prompt_pos = line.find("❯")
+        if line[:prompt_pos].strip():
+            continue
+        if idx == 0 or idx + 1 >= len(lines):
+            continue
+        prev = lines[idx - 1].strip()
+        nxt = lines[idx + 1].strip()
+        if not prev or not nxt:
+            continue
+        if set(prev) - {"─"} or set(nxt) - {"─"}:
+            continue
+        content = line[prompt_pos + 1:].strip()
+        if content:
             return True
+        return False
     return False
 
 
