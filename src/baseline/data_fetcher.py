@@ -62,8 +62,6 @@ class DataFetcher(ABC):
         """Return long-format DataFrame: columns trade_date, ts_code, open, high, low, close, vol, amount.
 
         `adjust` in {"none", "qfq", "hfq"} for raw / forward / backward adjusted.
-        Optional columns consumed by v2 execution realism filters:
-        paused / is_open / trade_status / prev_close / limit_pct / board / market / is_st
         """
 
     @abstractmethod
@@ -217,8 +215,7 @@ class MockDataFetcher(DataFetcher):
                 rows.append({
                     "trade_date": dt, "ts_code": code,
                     "open": open_[j], "high": high[j], "low": low[j], "close": close[j],
-                    "vol": vol[j], "amount": vol[j] * close[j], "paused": 0,
-                    "is_open": 1, "limit_pct": 0.10, "board": "main",
+                    "vol": vol[j], "amount": vol[j] * close[j],
                 })
         self._bars = pd.DataFrame(rows)
         idx_close = self._bars.groupby("trade_date")["close"].mean()

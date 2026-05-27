@@ -1,5 +1,5 @@
 session_name = "research-runtime"
-codex_command = ["/mnt/storage/work/hwang/tinyKaggleClaw/codex_bypass_wrapper.py"]
+codex_command = ["/mnt/storage/work/hwang/tinyKaggleClaw/claude_bypass_wrapper.py"]
 agents = ["leader", "researcher", "trainer"]
 submit_keys = ["C-m", "C-m"]
 submit_delay_ms = 1200

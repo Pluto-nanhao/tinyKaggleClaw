@@ -35,7 +35,6 @@ class EngineConfig:
     rebalance: str = "W-FRI"
     warmup_start: str | None = None  # e.g. "2024-07-01" for momentum lookback warmup
     output_dir: str | None = None
-    execution_filters: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -72,83 +71,8 @@ class BacktestEngine:
         log.info("  benchmark  : %s   rebalance: %s", self.cfg.benchmark, self.cfg.rebalance)
         log.info("  capital    : %.0f   commission: %.4f   slippage: %.1f bps",
                  self.cfg.initial_capital, self.cfg.commission_rate, self.cfg.slippage_bps)
-        log.info("  exec rules : %s", self.cfg.execution_filters or {"enabled": False})
         log.info("  output_dir : %s", self.cfg.output_dir)
         log.info("=" * 72)
-
-    @staticmethod
-    def _row_to_series(row: pd.Series | pd.DataFrame) -> pd.Series:
-        if isinstance(row, pd.DataFrame):
-            return row.iloc[-1]
-        return row
-
-    @staticmethod
-    def _infer_limit_pct(row: pd.Series) -> float:
-        limit_pct = row.get("limit_pct")
-        if pd.notna(limit_pct):
-            limit_pct = float(limit_pct)
-            return limit_pct / 100.0 if limit_pct > 1.0 else limit_pct
-
-        board = str(row.get("board", "")).lower()
-        market = str(row.get("market", "")).lower()
-        if any(key in board for key in ("star", "科创")) or any(key in market for key in ("star", "科创")):
-            return 0.20
-        if any(key in board for key in ("chinext", "创业")) or any(key in market for key in ("chinext", "创业")):
-            return 0.20
-        if bool(row.get("is_st", False)):
-            return 0.05
-        return 0.10
-
-    @staticmethod
-    def _is_paused(row: pd.Series) -> bool:
-        paused = row.get("paused")
-        if pd.notna(paused):
-            return bool(int(paused))
-        is_open = row.get("is_open")
-        if pd.notna(is_open):
-            return int(is_open) == 0
-        trade_status = str(row.get("trade_status", "")).lower()
-        if trade_status in {"suspend", "halt", "paused"}:
-            return True
-        return False
-
-    def _blocked_trade_reason(
-        self,
-        side: str,
-        code: str,
-        exec_day: pd.Timestamp,
-        bars_lookup: pd.DataFrame,
-    ) -> str | None:
-        rules = self.cfg.execution_filters or {}
-        if not rules.get("enabled", False):
-            return None
-
-        key = (exec_day, code)
-        if key not in bars_lookup.index:
-            return None
-
-        row = self._row_to_series(bars_lookup.loc[key])
-        if rules.get("check_suspension", True) and self._is_paused(row):
-            return "paused"
-
-        if not rules.get("check_price_limits", True):
-            return None
-
-        prev_close = row.get("prev_close")
-        close_px = row.get("close")
-        if pd.isna(prev_close) or pd.isna(close_px) or prev_close <= 0:
-            return None
-
-        limit_pct = self._infer_limit_pct(row)
-        up_limit = float(prev_close) * (1.0 + limit_pct)
-        down_limit = float(prev_close) * (1.0 - limit_pct)
-        tol = max(abs(float(prev_close)) * 1e-6, 1e-8)
-
-        if side == "buy" and float(close_px) >= up_limit - tol:
-            return "limit_up_close"
-        if side == "sell" and float(close_px) <= down_limit + tol:
-            return "limit_down_close"
-        return None
 
     def _load_data(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DatetimeIndex]:
         bar_start = self.cfg.warmup_start or self.cfg.start_date
@@ -196,10 +120,6 @@ class BacktestEngine:
 
         bars_pivot_close = bars.pivot(index="trade_date", columns="ts_code", values="close").sort_index()
         bars_pivot_close = bars_pivot_close.reindex(cal).ffill()
-        bars = bars.sort_values(["ts_code", "trade_date"]).reset_index(drop=True)
-        if "prev_close" not in bars.columns:
-            bars["prev_close"] = bars.groupby("ts_code")["close"].shift(1)
-        bars_lookup = bars.set_index(["trade_date", "ts_code"]).sort_index()
 
         cash = self.cfg.initial_capital
         positions: dict[str, dict[str, float]] = {}  # ts_code -> {qty, cost}
@@ -234,7 +154,6 @@ class BacktestEngine:
 
                 exec_day = cal[i + 1]
                 exec_prices = bars_pivot_close.loc[exec_day]
-                blocked_counts = {"buy": 0, "sell": 0}
 
                 target_value = {code: w * nav for code, w in target_weights.items()}
                 all_codes = set(positions) | set(target_value)
@@ -251,12 +170,6 @@ class BacktestEngine:
                     if abs(diff_value) < 1e-6:
                         continue
                     side = "buy" if diff_value > 0 else "sell"
-                    blocked_reason = self._blocked_trade_reason(side, code, exec_day, bars_lookup)
-                    if blocked_reason:
-                        blocked_counts[side] += 1
-                        log.info("[BT-EXEC-BLOCK] %s %s on %s skipped: %s",
-                                 side, code, exec_day.date(), blocked_reason)
-                        continue
                     px_eff = px * (1 + slip) if side == "buy" else px * (1 - slip)
                     qty = diff_value / px_eff
                     fee = abs(diff_value) * comm
@@ -291,9 +204,6 @@ class BacktestEngine:
                          day.date(), exec_day.date(),
                          int((target_weights > 0).sum()) if len(target_weights) else 0,
                          nav, cash)
-                if any(blocked_counts.values()):
-                    log.info("[BT-EXEC-SUMMARY] %s blocked buys=%d sells=%d",
-                             exec_day.date(), blocked_counts["buy"], blocked_counts["sell"])
 
             month_key = (day.year, day.month)
             if last_log_month != month_key:

@@ -65,7 +65,7 @@ start_bg() {
   fi
 
   echo "Starting ${name} ..."
-  nohup setsid "$@" >> "${log_file}" 2>&1 &
+  nohup "$@" >> "${log_file}" 2>&1 &
   local pid=$!
   echo "${pid}" > "${pid_file}"
   sleep 1

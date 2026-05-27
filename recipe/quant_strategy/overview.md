@@ -2,21 +2,11 @@
 
 ## Task Type
 
-This is an **A-stock quantitative factor mining and strategy optimization task**.
+This is an **A-stock quantitative strategy optimization task**.
 
 ## Goal
 
-Given a human-provided direction (e.g. "intraday volume-price alpha factors"), the agent team autonomously iterates through factor design, local gsim backtesting, result triage, and refinement cycles.
-
-The default local path is factor mining, not remote WQ submission:
-
-```bash
-baseline/run_factor_mining_v1.sh
-```
-
-This uses `src/baseline/local_factor_miner.py`, writes run artifacts under
-`output/factor_mining/`, and records a run-level `launch.log` plus per-iter
-`gsim.log` files.
+Given a human-provided direction (e.g. "mid-cap momentum strategy based on volume-price patterns"), the agent team autonomously iterates through strategy design, implementation, backtesting, and refinement cycles.
 
 ## Reference Strategies
 

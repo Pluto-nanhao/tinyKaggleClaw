@@ -12,8 +12,6 @@ used by extended variants (e.g. min-hold filtering).
 """
 from __future__ import annotations
 
-import math
-
 import pandas as pd
 
 from ..strategy_base import BaseStrategy, StrategyContext
@@ -25,8 +23,6 @@ class MomentumBreakout(BaseStrategy):
         vol_window = int(self.params.get("vol_window", 20))
         vol_ratio = float(self.params.get("vol_ratio", 1.5))
         mom_window = int(self.params.get("mom_window", 60))
-        reversal_window = int(self.params.get("reversal_window", 5))
-        reversal_exclude_top_pct = float(self.params.get("reversal_exclude_top_pct", 0.0))
 
         bars = ctx.bars
         if bars.empty:
@@ -37,7 +33,7 @@ class MomentumBreakout(BaseStrategy):
         rows: list[dict] = []
         for code, g in recent.groupby("ts_code"):
             g = g.sort_values("trade_date")
-            if len(g) < max(lookback, vol_window, mom_window, reversal_window):
+            if len(g) < max(lookback, vol_window, mom_window):
                 continue
             close = g["close"].to_numpy()
             vol = g["vol"].to_numpy()
@@ -52,22 +48,8 @@ class MomentumBreakout(BaseStrategy):
             if not (is_breakout and vol_ok):
                 continue
             mom = close_t / close[-mom_window] - 1.0
-            reversal_5d = close_t / close[-reversal_window] - 1.0
-            rows.append({
-                "ts_code": code,
-                "score": float(mom),
-                "reversal_5d": float(reversal_5d),
-            })
+            rows.append({"ts_code": code, "score": float(mom)})
 
         if not rows:
             return pd.DataFrame(columns=["score"])
-        signals = pd.DataFrame(rows).set_index("ts_code")
-
-        if reversal_exclude_top_pct > 0 and len(signals) > 1:
-            n_exclude = math.ceil(len(signals) * reversal_exclude_top_pct)
-            n_exclude = max(1, n_exclude)
-            n_exclude = min(len(signals) - 1, n_exclude)
-            exclude_idx = signals["reversal_5d"].nlargest(n_exclude).index
-            signals = signals.drop(index=exclude_idx)
-
-        return signals
+        return pd.DataFrame(rows).set_index("ts_code")
