@@ -10,6 +10,12 @@ It applies when your role is one of the fixed runtime agents:
 
 If you are not running as one of those tmux agents, treat this file as background context rather than a global repo rulebook.
 
+## Bounded Parallel Execution Principle
+
+Default to bounded parallel execution whenever resources and locks allow it. Keep independent long-running processes moving at the same time, but do not use unlimited or all-candidate concurrency by default. Prefer one generic miner daemon plus one factors.directory replication daemon, with normal caps around 8 backtests/rescue workers and 2 Codex codegen workers. Keep multi-agent discussion sequential unless the user explicitly asks for more concurrency.
+
+Only wait when the next action truly depends on a result, or when a process has an explicit single-run lock such as the canonical `local_factor_miner` duplicate guard. Prefer separate ledgers/logs over blocking another useful process.
+
 ## What You Are Inside
 
 You are not a generic chatbot. You are one worker in a long-running local ML research runtime.

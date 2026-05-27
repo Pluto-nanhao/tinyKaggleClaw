@@ -26,6 +26,10 @@ Yaml schema:
     commission_rate: 0.0003
     slippage_bps: 5
     rebalance: W-FRI
+    execution_filters:
+      enabled: false
+      check_suspension: true
+      check_price_limits: true
 """
 from __future__ import annotations
 
@@ -134,6 +138,7 @@ def main() -> int:
         rebalance=cfg["engine"]["rebalance"],
         warmup_start=cfg["data"].get("warmup_start"),
         output_dir=str(output_dir),
+        execution_filters=cfg["engine"].get("execution_filters", {}),
     )
     engine = BacktestEngine(engine_cfg, fetcher, strategy, universe)
 

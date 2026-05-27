@@ -47,6 +47,13 @@ This repository currently serves two purposes:
 - the `research_mvp` runtime itself
 - an example research workspace with `baseline/`, `src/baseline/`, `recipe/`, `eda/`, `docs/`, and `output/`
 
+For factor-mining docs in this workspace:
+
+- Project introduction: [FACTOR_MINING_PROJECT_INTRO.md](FACTOR_MINING_PROJECT_INTRO.md)
+- Project operation manual: [FACTOR_MINING_README.md](FACTOR_MINING_README.md)
+- Codex setup and run guide: [CODEX_RUN_README.md](CODEX_RUN_README.md)
+- Human-readable reference workflow: [docs/factor_mining_reference_workflow.md](docs/factor_mining_reference_workflow.md)
+
 ## Why This Exists
 
 Most agent demos stop at "send a prompt, get a reply".
